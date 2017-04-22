@@ -5,37 +5,70 @@
 
 using namespace std;
 
-GLfloat length = 0.5, movelength = 0.2;
-//GLfloat camPosX = 0, camPosZ = 1, Radius = 3.0;
-
+GLfloat length = 0.1f, movelength = 0.02f;
+GLfloat angle = 3.1415926535898f / 720.0f;
 
 class Camera {
 public:
 	Camera()
 	{
-		cameraPosX = cameraPosY = cameraPosZ = 3.0;
+		cameraPosX = cameraPosY = 0.0f; cameraPosZ = 1.0f;
 		cameraUpX = 0; cameraUpY = 1.0; cameraUpZ = 0;
+		d_pitch = d_yaw = 0.0f;
+		RR();
 	}
 
 	void moveForward(GLfloat const distance)
 	{
-		cameraPosZ -= distance;
+		cameraPosX += cameraFrontX*distance;
+		cameraPosY += cameraFrontY*distance;
+		cameraPosZ += cameraFrontZ*distance;
 	}
+
 	void moveBack(GLfloat const distance)
 	{
-		cameraPosZ += distance;
+		cameraPosX -= cameraFrontX*distance;
+		cameraPosY -= cameraFrontY*distance;
+		cameraPosZ -= cameraFrontZ*distance;
 	}
+
 	void moveRight(GLfloat const distance)
 	{
-		cameraPosX += distance;
+		cameraPosX += cameraRightX*distance;
+		cameraPosY += cameraRightY*distance;
+		cameraPosZ += cameraRightZ*distance;
 	}
+
 	void moveLeft(GLfloat const distance)
 	{
-		cameraPosX -= distance;
+		cameraPosX -= cameraRightX*distance;
+		cameraPosY -= cameraRightY*distance;
+		cameraPosZ -= cameraRightZ*distance;
 	}
+
 	void rotate(GLfloat const pitch, GLfloat const yaw)
 	{
+		d_pitch += pitch;
+		d_yaw += yaw;
+		RR();
+	}
 
+	void RR()
+	{
+		cameraFrontX = -sin(d_yaw)*cos(d_pitch);
+		cameraFrontY = sin(d_pitch);
+		cameraFrontZ = -cos(d_yaw)*cos(d_pitch);
+		GLfloat sum = sqrt(pow(cameraFrontX, 2) + pow(cameraFrontY, 2) + pow(cameraFrontZ, 2));
+		cameraFrontX /= sum;
+		cameraFrontY /= sum;
+		cameraFrontZ /= sum;
+		cameraRightX = cos(d_yaw);
+		cameraRightY = 0;
+		cameraRightZ = -sin(d_yaw);
+		sum = sqrt(pow(cameraRightX, 2) + pow(cameraRightY, 2) + pow(cameraRightZ, 2));
+		cameraRightX /= sum;
+		cameraRightY /= sum;
+		cameraRightY /= sum;
 	}
 
 	GLfloat pfov, pratio, pnear, pfar;
@@ -43,6 +76,8 @@ public:
 	GLfloat cameraFrontX, cameraFrontY, cameraFrontZ;
 	GLfloat cameraRightX, cameraRightY, cameraRightZ;
 	GLfloat cameraUpX, cameraUpY, cameraUpZ;
+	int mouse_x, mouse_y;
+	GLfloat radius = 3.0f, d_pitch, d_yaw;
 };
 
 Camera cam;
@@ -101,14 +136,17 @@ void display() {
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	//glOrtho(-1.5, 1.5, -1.5, 1.5, -1.5, 1.5);
-	gluPerspective(30, 1.0, 1.0, 100.0);
+	gluPerspective(60, 1.0, 1.0, 100.0);
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
-	gluLookAt(cam.cameraPosX, cam.cameraPosY, cam.cameraPosZ, 0, 0, 0, cam.cameraUpX, cam.cameraUpY, cam.cameraUpZ);
+	gluLookAt(cam.cameraPosX, cam.cameraPosY, cam.cameraPosZ, cam.cameraPosX+cam.cameraFrontX, cam.cameraPosY + cam.cameraFrontY, cam.cameraPosZ + cam.cameraFrontZ, cam.cameraUpX, cam.cameraUpY, cam.cameraUpZ);
 	//GLfloat t = clock();
 	//camPosX = sin(t / 1000.0)*Radius;
 	//camPosZ = cos(t / 1000.0)*Radius;
-	//glTranslatef(0.5, -0.5, -1.5);
+	glPushMatrix();
+	glTranslatef(0.5, -0.5, -1.0);
+	cube();
+	glPopMatrix();
 	cube();
 	glutSwapBuffers();
 }
@@ -144,7 +182,21 @@ void keyboard(unsigned char key, int x, int y)
 
 void mouse(int button, int state, int x, int y)
 {
-	
+	if (state == GLUT_DOWN)
+	{
+		cam.mouse_x = x;
+		cam.mouse_y = y;
+	}
+}
+
+void mousemove(int x, int y)
+{
+	GLfloat pitch, yaw;
+	yaw = (cam.mouse_x - x)*angle;
+	pitch = (cam.mouse_y - y)*angle;
+	cam.mouse_x = x;
+	cam.mouse_y = y;
+	cam.rotate(pitch, yaw);
 }
 
 int main(int argc, char **argv) {
@@ -157,6 +209,8 @@ int main(int argc, char **argv) {
 	glutPostRedisplay();
 	glutDisplayFunc(display);
 	glutKeyboardFunc(keyboard);
+	glutMouseFunc(mouse);
+	glutMotionFunc(mousemove);
 	glutIdleFunc(display);
 	glutMainLoop();
 	return 0;
